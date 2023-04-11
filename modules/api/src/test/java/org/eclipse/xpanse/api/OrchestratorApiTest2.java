@@ -1,6 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * SPDX-FileCopyrightText: Huawei Inc.
+ *
+ */
+
 package org.eclipse.xpanse.api;
 
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -19,31 +24,26 @@ import org.eclipse.xpanse.modules.models.utils.OclLoader;
 import org.eclipse.xpanse.orchestrator.OrchestratorService;
 import org.eclipse.xpanse.orchestrator.register.RegisterService;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
 
+/**
+ * Test for OrchestratorApi.
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 @Slf4j
 public class OrchestratorApiTest2 {
 
     ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
-
-    @Autowired
-    private WebApplicationContext webApplicationContext;
 
     @Autowired
     private MockMvc mockMvc;
@@ -69,7 +69,6 @@ public class OrchestratorApiTest2 {
     public void postRegister_whenValidInput_thenReturns200() throws Exception {
         OclLoader oclLoader = new OclLoader();
         Ocl ocl = oclLoader.getOcl(new URL("file:./target/test-classes/ocl_test.yaml"));
-
         mockMvc.perform(
                         MockMvcRequestBuilders.post("/xpanse/register")
                                 .contentType(MediaType.parseMediaType("application/x-yaml"))
@@ -85,7 +84,6 @@ public class OrchestratorApiTest2 {
                         .content(objectMapper.writeValueAsString(ocl)))
                 .andExpect(status().isBadRequest())
                 .andReturn();
-
         String contentAsString = mvcResult.getResponse().getContentAsString();
         Assertions.assertTrue(contentAsString.contains(ResultCode.BAD_PARAMETERS.getCode()));
         Assertions.assertTrue(contentAsString.contains(ResultCode.BAD_PARAMETERS.getMessage()));
@@ -112,7 +110,6 @@ public class OrchestratorApiTest2 {
                                 .content(objectMapper.writeValueAsString(ocl)))
                 .andExpect(status().isBadRequest())
                 .andReturn();
-
         String contentAsString = mvcResult.getResponse().getContentAsString();
         Assertions.assertTrue(contentAsString.contains(ResultCode.BAD_PARAMETERS.getCode()));
         Assertions.assertTrue(contentAsString.contains(ResultCode.BAD_PARAMETERS.getMessage()));
@@ -149,7 +146,6 @@ public class OrchestratorApiTest2 {
         String cspName = "huawei";
         String serviceName = "kafka";
         String serviceVersion = "v1.0";
-
         mockMvc.perform(MockMvcRequestBuilders.get("/xpanse/register")
                         .param("categoryName", categoryName)
                         .param("cspName", cspName)
@@ -209,9 +205,7 @@ public class OrchestratorApiTest2 {
         createRequest.setFlavor("3-2-node-without-zookeeper");
         createRequest.setOcl(ocl);
         createRequest.setProperty(new HashMap<>());
-
         String createRequestString = new ObjectMapper().writeValueAsString(createRequest);
-
         mockMvc.perform(MockMvcRequestBuilders.post("/xpanse/service")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createRequestString))
@@ -221,31 +215,17 @@ public class OrchestratorApiTest2 {
     @Test
     public void testDestroy() throws Exception {
         String uuid = UUID.randomUUID().toString();
-
         mockMvc.perform(MockMvcRequestBuilders.delete("/xpanse/service/{id}", uuid))
                 .andExpect(status().isAccepted());
-    }
-
-    @BeforeEach
-    public void setUp() throws Exception {
-        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
     }
 
     @Test
     public void testOpenApi() throws Exception {
         String uuid = UUID.randomUUID().toString();
-        // Mock register service response
         String openApiUrl = "http://localhost:8080/openapi";
         Mockito.when(registerService.getOpenApiUrl(uuid)).thenReturn(openApiUrl);
-
-        // Perform GET request
-        MockHttpServletResponse response = mockMvc.perform(MockMvcRequestBuilders.get("/xpanse/register/openapi/{id}",uuid))
-                .andReturn().getResponse();
-        Assertions.assertEquals(HttpStatus.MOVED_PERMANENTLY.value(), response.getStatus());
-        Assertions.assertEquals(openApiUrl, response.getHeader("Location"));
-        Assertions.assertEquals(HttpStatus.PERMANENT_REDIRECT.value(), response.getStatus());
-
+        mockMvc.perform(MockMvcRequestBuilders.get("/xpanse/register/openapi/{id}", uuid))
+                .andExpect(redirectedUrl(openApiUrl));
     }
-
 
 }
