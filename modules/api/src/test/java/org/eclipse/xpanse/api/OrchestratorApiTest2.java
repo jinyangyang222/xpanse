@@ -227,5 +227,4 @@ public class OrchestratorApiTest2 {
         mockMvc.perform(MockMvcRequestBuilders.get("/xpanse/register/openapi/{id}", uuid))
                 .andExpect(redirectedUrl(openApiUrl));
     }
-
 }
