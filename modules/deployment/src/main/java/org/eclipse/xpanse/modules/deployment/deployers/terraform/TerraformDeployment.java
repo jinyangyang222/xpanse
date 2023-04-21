@@ -6,12 +6,25 @@
 
 package org.eclipse.xpanse.modules.deployment.deployers.terraform;
 
+import jakarta.validation.Valid;
+import java.io.BufferedInputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.xpanse.modules.deployment.Deployment;
 import org.eclipse.xpanse.modules.deployment.deployers.terraform.exceptions.TerraformExecutorException;
@@ -32,6 +45,7 @@ public class TerraformDeployment implements Deployment {
 
     public static final String VERSION_FILE_NAME = "version.tf";
     public static final String SCRIPT_FILE_NAME = "resources.tf";
+    public static final String TERRAFORM_TAG_NAME = "terraform.tar.gz";
 
 
     private final String workspaceDirectory;
@@ -51,9 +65,19 @@ public class TerraformDeployment implements Deployment {
         String workspace = getWorkspacePath(task.getId().toString());
         // Create the workspace.
         buildWorkspace(workspace);
-        createScriptFile(task.getCreateRequest().getCsp(), task.getCreateRequest().getRegion(),
-                workspace, task.getOcl().getDeployment().getDeployer());
-        // Execute the terraform command.
+
+        String tagUrl = task.getOcl().getDeployment().getDeployer();
+
+        try {
+            downLoadTag(workspace, tagUrl);
+            String fileName = unZip(workspace);
+            String tfScript = readFiLeAsString(workspace, fileName);
+            createScriptFile(task.getCreateRequest().getCsp(), task.getCreateRequest().getRegion(),
+                    workspace, tfScript);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         TerraformExecutor executor = getExecutor(task, workspace);
         executor.deploy();
         String tfState = executor.getTerraformState();
@@ -152,8 +176,8 @@ public class TerraformDeployment implements Deployment {
      * @param taskId The id of the task.
      */
     private String getWorkspacePath(String taskId) {
-        return System.getProperty("java.io.tmpdir")
-                + File.separator + this.workspaceDirectory  + File.separator + taskId;
+        return System.getProperty("user.dir")
+                + File.separator + this.workspaceDirectory + File.separator + taskId;
     }
 
 
@@ -164,4 +188,71 @@ public class TerraformDeployment implements Deployment {
     public DeployerKind getDeployerKind() {
         return DeployerKind.TERRAFORM;
     }
+
+
+    public String readFiLeAsString(String workspace, String fileName) {
+        String directoryPath = workspace + File.separator + fileName + "deployScript.tf";
+        String scriptStr = null;
+        try {
+            scriptStr = Files.readString(Paths.get(directoryPath));
+            log.info("Read terraform script success.");
+        } catch (IOException e) {
+            e.printStackTrace();
+            log.error("Read terraform script fail:{}.", e.getMessage());
+        }
+        return scriptStr;
+    }
+
+
+    public String unZip(String workspace) {
+        String fileName = null;
+        boolean isFirst = true;
+        Path targetPath = Paths.get(workspace + File.separator + TERRAFORM_TAG_NAME);
+        try (TarArchiveInputStream tarInput = new TarArchiveInputStream(
+                new GzipCompressorInputStream(new BufferedInputStream(
+                        Files.newInputStream(targetPath))))) {
+            TarArchiveEntry entry;
+            while ((entry = tarInput.getNextTarEntry()) != null) {
+                Path filePath = Paths.get(workspace + File.separator + entry.getName());
+                if (entry.isDirectory()) {
+                    Files.createDirectories(filePath);
+                    if (isFirst) {
+                        fileName = entry.getName();
+                        isFirst = false;
+                    }
+                } else {
+                    Files.createDirectories(filePath.getParent());
+                    Files.copy(tarInput, filePath, StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+            log.info("Unzip the tag package success,name:{}", fileName);
+            Files.delete(targetPath);
+        } catch (IOException e) {
+            e.printStackTrace();
+            log.error("Unzip the tag package fail:{}", e.getMessage());
+        }
+        return fileName;
+    }
+
+    public void downLoadTag(String workspace, String tagUrl) {
+        try {
+            URL url = new URL(tagUrl);
+            InputStream in = url.openStream();
+            FileOutputStream out = new FileOutputStream(
+                    workspace + File.separator + TERRAFORM_TAG_NAME);
+            byte[] buffer = new byte[4096];
+            int bytesRead = 0;
+            while ((bytesRead = in.read(buffer)) != -1) {
+                out.write(buffer, 0, bytesRead);
+            }
+            out.close();
+            in.close();
+            log.info("Download the tag package success.");
+        } catch (IOException e) {
+            e.printStackTrace();
+            log.error("Download the tag package fail:{}.", e.getMessage());
+        }
+    }
+
+
 }
