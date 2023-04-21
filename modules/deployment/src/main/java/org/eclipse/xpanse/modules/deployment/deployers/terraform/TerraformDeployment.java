@@ -176,7 +176,7 @@ public class TerraformDeployment implements Deployment {
      * @param taskId The id of the task.
      */
     private String getWorkspacePath(String taskId) {
-        return System.getProperty("user.dir")
+        return System.getProperty("java.io.tmpdir")
                 + File.separator + this.workspaceDirectory + File.separator + taskId;
     }
 
