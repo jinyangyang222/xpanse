@@ -133,8 +133,15 @@ public class RegisteredServicesOpenApiGenerator {
                 }
                 log.info("Service openApi yamlFile:{} create successful.", yamlFile.getPath());
             }
-            if (yamlFile.exists() && this.openApiUtil.downloadClientJar(openApiDir)) {
-                File jarPath = new File(openApiDir, "openapi-generator-cli.jar");
+            String targetFolder = "target";
+            String jarFileName = "openapi-generator-cli.jar";
+
+            // 使用 File.separator 构建路径
+            String filePath = targetFolder + File.separator + jarFileName;
+
+            File jarPath = new File(filePath);
+            boolean exists = jarPath.exists();
+            if (yamlFile.exists() && exists) {
                 String comm = String.format("java -jar %s generate -g html2 "
                         + "-i %s -o %s", jarPath.getPath(), yamlFile.getPath(), openApiDir);
                 Process exec = Runtime.getRuntime().exec(comm);
@@ -158,7 +165,6 @@ public class RegisteredServicesOpenApiGenerator {
                     if (htmlFile.exists()) {
                         return this.openApiUtil.getOpenApiUrl(serviceId);
                     }
-
                 }
             }
             return StringUtils.EMPTY;

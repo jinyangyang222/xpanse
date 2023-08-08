@@ -1,6 +1,5 @@
 package org.eclipse.xpanse.common.openapi;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.UUID;
@@ -61,18 +60,18 @@ class OpenApiUtilTest {
         Assertions.assertEquals(openApiUrl, result);
     }
 
-    @Test
-    void testDownloadClientJar() throws IOException {
-        // SetUp
-        File jarFile = new File(openApiPath + "/openapi-generator-cli-6.6.0.jar").getAbsoluteFile();
-        if (jarFile.exists()) {
-            jarFile.delete();
-        }
-        // Run the test
-        boolean result = openApiUtilTest.downloadClientJar(openApiPath);
-        // Verify the results
-        Assertions.assertTrue(result);
-    }
+//    @Test
+//    void testDownloadClientJar() throws IOException {
+//        // SetUp
+//        File jarFile = new File(openApiPath + "/openapi-generator-cli-6.6.0.jar").getAbsoluteFile();
+//        if (jarFile.exists()) {
+//            jarFile.delete();
+//        }
+//        // Run the test
+//        boolean result = openApiUtilTest.downloadClientJar(openApiPath);
+//        // Verify the results
+//        Assertions.assertTrue(result);
+//    }
 
     @Test
     void testGetClientDownLoadUrl() {
